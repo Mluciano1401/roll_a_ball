@@ -32,6 +32,7 @@ public class GameManager : MonoBehaviour
         else
         {
             Destroy(gameObject);
+            return;
         }
     }
 
@@ -45,15 +46,18 @@ public class GameManager : MonoBehaviour
 
         totalCollectibles = GameObject.FindGameObjectsWithTag("Collectible").Length;
 
-        // Obtener el nivel actual desde PlayerPrefs
-        currentLevel = PlayerPrefs.GetInt("CurrentLevel", 1);
+        // CRÍTICO: NO sobrescribir currentLevel
+        // Usar el valor configurado en el Inspector de cada escena
+        Debug.Log($"=== INICIANDO NIVEL {currentLevel} ===");
 
+        // Configurar tiempo según el nivel
         if (currentLevel > 0 && currentLevel <= levelTimes.Length)
         {
             timeRemaining = levelTimes[currentLevel - 1];
         }
         else
         {
+            Debug.LogWarning($"CurrentLevel ({currentLevel}) fuera de rango. Usando tiempo por defecto.");
             timeRemaining = 60f;
         }
 
@@ -63,6 +67,9 @@ public class GameManager : MonoBehaviour
         {
             UIManager.Instance.UpdateUI();
         }
+
+        Debug.Log($"Tiempo límite: {timeRemaining}s");
+        Debug.Log($"Coleccionables totales: {totalCollectibles}");
     }
 
     void Update()
@@ -134,13 +141,47 @@ public class GameManager : MonoBehaviour
     public void LoadNextLevel()
     {
         int nextLevel = currentLevel + 1;
+        Debug.Log("=== LoadNextLevel LLAMADO ===");
+        Debug.Log("Nivel actual: " + currentLevel);
+        Debug.Log("Siguiente nivel: " + nextLevel);
+
         if (nextLevel <= 15)
         {
-            SceneManager.LoadScene("Level" + nextLevel);
+            string sceneName = "Level" + nextLevel;
+            Debug.Log("Nombre de escena a cargar: " + sceneName);
+
+            // Actualizar PlayerPrefs ANTES de cargar
+            PlayerPrefs.SetInt("CurrentLevel", nextLevel);
+            PlayerPrefs.Save();
+            Debug.Log("PlayerPrefs actualizado a nivel: " + nextLevel);
+
+            // Asegurar que el tiempo está correcto
+            Time.timeScale = 1f;
+
+            // Intentar cargar la escena
+            try
+            {
+                Debug.Log("Intentando cargar escena: " + sceneName);
+                SceneManager.LoadScene(sceneName);
+                Debug.Log("LoadScene ejecutado exitosamente");
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError("ERROR al cargar escena: " + e.Message);
+                Debug.LogError("Stack trace: " + e.StackTrace);
+                Debug.LogWarning("Verifica que '" + sceneName + "' existe en Build Profiles");
+
+                // Si falla, volver al menú
+                Debug.Log("Volviendo a MainMenu como fallback...");
+                SceneManager.LoadScene("MainMenu");
+            }
         }
         else
         {
             // Todos los niveles completados
+            Debug.Log("¡Todos los niveles completados!");
+            Debug.Log("Volviendo al menú principal...");
+            Time.timeScale = 1f;
             SceneManager.LoadScene("MainMenu");
         }
     }

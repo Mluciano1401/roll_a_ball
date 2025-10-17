@@ -1,6 +1,6 @@
+﻿using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
 
 public class UIManager : MonoBehaviour
 {
@@ -35,6 +35,77 @@ public class UIManager : MonoBehaviour
     {
         if (gameOverPanel != null) gameOverPanel.SetActive(false);
         if (levelCompletePanel != null) levelCompletePanel.SetActive(false);
+
+        // Conectar botones automáticamente en Unity 6
+        SetupButtons();
+    }
+
+    void SetupButtons()
+    {
+        Debug.Log("=== CONFIGURANDO BOTONES UI ===");
+
+        // Buscar y conectar botones en GameOverPanel
+        if (gameOverPanel != null)
+        {
+            Button[] gameOverButtons = gameOverPanel.GetComponentsInChildren<Button>(true);
+            Debug.Log("Botones encontrados en GameOverPanel: " + gameOverButtons.Length);
+
+            foreach (Button btn in gameOverButtons)
+            {
+                string btnName = btn.gameObject.name.ToLower();
+                Debug.Log("  Procesando botón: " + btn.gameObject.name);
+
+                if (btnName.Contains("restart"))
+                {
+                    btn.onClick.RemoveAllListeners();
+                    btn.onClick.AddListener(OnRestartButton);
+                    Debug.Log("    ✅ Restart conectado");
+                }
+                else if (btnName.Contains("menu"))
+                {
+                    btn.onClick.RemoveAllListeners();
+                    btn.onClick.AddListener(OnMainMenuButton);
+                    Debug.Log("    ✅ Menu conectado");
+                }
+            }
+        }
+        else
+        {
+            Debug.LogWarning("GameOverPanel es null!");
+        }
+
+        // Buscar y conectar botones en LevelCompletePanel
+        if (levelCompletePanel != null)
+        {
+            Button[] completeButtons = levelCompletePanel.GetComponentsInChildren<Button>(true);
+            Debug.Log("Botones encontrados en LevelCompletePanel: " + completeButtons.Length);
+
+            foreach (Button btn in completeButtons)
+            {
+                string btnName = btn.gameObject.name.ToLower();
+                Debug.Log("  Procesando botón: " + btn.gameObject.name);
+
+                if (btnName.Contains("next"))
+                {
+                    btn.onClick.RemoveAllListeners();
+                    btn.onClick.AddListener(OnNextLevelButton);
+                    btn.interactable = true; // Asegurar que está activo
+                    Debug.Log("    ✅ Next Level conectado e interactable");
+                }
+                else if (btnName.Contains("menu"))
+                {
+                    btn.onClick.RemoveAllListeners();
+                    btn.onClick.AddListener(OnMainMenuButton);
+                    Debug.Log("    ✅ Menu conectado");
+                }
+            }
+        }
+        else
+        {
+            Debug.LogWarning("LevelCompletePanel es null!");
+        }
+
+        Debug.Log("=== CONFIGURACIÓN DE BOTONES COMPLETADA ===");
     }
 
     public void UpdateUI()
@@ -80,7 +151,14 @@ public class UIManager : MonoBehaviour
         {
             gameOverPanel.SetActive(true);
         }
-        Time.timeScale = 0f;
+
+        // NO pausar para que botones funcionen
+        // Time.timeScale = 0f;  ← COMENTADO
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.gameActive = false;
+        }
     }
 
     public void ShowLevelComplete()
@@ -93,7 +171,7 @@ public class UIManager : MonoBehaviour
             {
                 float timeUsed = GameManager.Instance.levelTimes[GameManager.Instance.currentLevel - 1]
                     - GameManager.Instance.timeRemaining;
-                completeTimeText.text = string.Format("�Tiempo: {0:F2}s!", timeUsed);
+                completeTimeText.text = string.Format("¡Tiempo: {0:F2}s!", timeUsed);
             }
 
             if (nextLevelText != null)
@@ -105,11 +183,19 @@ public class UIManager : MonoBehaviour
                 }
                 else
                 {
-                    nextLevelText.text = "�Todos los niveles completados!";
+                    nextLevelText.text = "¡Todos los niveles completados!";
                 }
             }
         }
-        Time.timeScale = 0f;
+
+        // NO pausar el juego para que los botones funcionen
+        // Time.timeScale = 0f;  ← COMENTADO
+
+        // Alternativa: solo detener el GameManager
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.gameActive = false;
+        }
     }
 
     public void OnRestartButton()
@@ -123,10 +209,42 @@ public class UIManager : MonoBehaviour
 
     public void OnNextLevelButton()
     {
+        Debug.Log("=== OnNextLevelButton PRESIONADO ===");
+        Debug.Log("Time.timeScale actual: " + Time.timeScale);
+
+        // CRÍTICO: Restaurar el tiempo antes de cargar
         Time.timeScale = 1f;
+        Debug.Log("Time.timeScale establecido a: " + Time.timeScale);
+
         if (GameManager.Instance != null)
         {
+            Debug.Log("GameManager encontrado. Current Level: " + GameManager.Instance.currentLevel);
+            Debug.Log("Llamando a LoadNextLevel...");
+
+            // Ocultar panel antes de cargar
+            if (levelCompletePanel != null)
+            {
+                levelCompletePanel.SetActive(false);
+                Debug.Log("LevelCompletePanel ocultado");
+            }
+
             GameManager.Instance.LoadNextLevel();
+        }
+        else
+        {
+            Debug.LogError("¡GameManager.Instance es null!");
+            Debug.LogError("Intentando buscar GameManager en la escena...");
+
+            GameManager gm = FindObjectOfType<GameManager>();
+            if (gm != null)
+            {
+                Debug.Log("GameManager encontrado con FindObjectOfType");
+                gm.LoadNextLevel();
+            }
+            else
+            {
+                Debug.LogError("No se pudo encontrar GameManager en ninguna parte!");
+            }
         }
     }
 
@@ -138,5 +256,4 @@ public class UIManager : MonoBehaviour
             GameManager.Instance.LoadMainMenu();
         }
     }
-
 }
